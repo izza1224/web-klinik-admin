@@ -26,6 +26,7 @@ import {
   Check,
   ChevronRight,
   Info,
+  Upload,
 } from "lucide-react";
 import {
   defaultSettings,
@@ -56,7 +57,7 @@ import { isFirebaseReady } from "@/lib/firebase";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<
-    "services" | "about" | "certificates" | "testimonials" | "settings" | "firebase"
+    "services" | "about" | "certificates" | "testimonials" | "settings"
   >("services");
 
   // State data
@@ -70,7 +71,6 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
-  const [copiedRules, setCopiedRules] = useState(false);
 
   // Form tambah layanan baru
   const [newService, setNewService] = useState<ServiceItem>({
@@ -105,25 +105,7 @@ export default function AdminPage() {
   });
   const [showAddTestimonial, setShowAddTestimonial] = useState(false);
 
-  // Firebase client config helper
-  const [customFirebaseConfig, setCustomFirebaseConfig] = useState({
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: "",
-  });
-
   useEffect(() => {
-    // Load existing stored Firebase config if any
-    try {
-      const stored = localStorage.getItem("homecareku_firebase_config");
-      if (stored) {
-        setCustomFirebaseConfig(JSON.parse(stored));
-      }
-    } catch {}
-
     // Load CMS data
     Promise.all([
       fetchSiteSettings(),
@@ -145,6 +127,51 @@ export default function AdminPage() {
   const showToast = (type: "success" | "error" | "info", text: string) => {
     setFeedback({ type, text });
     setTimeout(() => setFeedback(null), 4500);
+  };
+
+  // Helper: Kompresi gambar client-side & konversi ke Base64 (max dimensi 900px, kualitas JPEG 82%)
+  const processImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        reject(new Error("File yang dipilih harus berupa gambar (JPG, PNG, WebP)!"));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const maxDim = 900;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(readerEvent.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => reject(new Error("Gagal membaca file gambar."));
+        img.src = readerEvent.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("Gagal mengunggah file."));
+      reader.readAsDataURL(file);
+    });
   };
 
   // Handlers untuk simpan
@@ -330,33 +357,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveFirebaseConfig = () => {
-    if (!customFirebaseConfig.projectId || !customFirebaseConfig.apiKey) {
-      showToast("error", "Project ID dan API Key wajib diisi!");
-      return;
-    }
-    localStorage.setItem("homecareku_firebase_config", JSON.stringify(customFirebaseConfig));
-    showToast("success", "Konfigurasi Firebase disimpan! Halaman akan direfresh...");
-    setTimeout(() => window.location.reload(), 1500);
-  };
-
-  const handleResetFirebaseConfig = () => {
-    if (confirm("Reset konfigurasi Firebase di browser dan gunakan environment variables?")) {
-      localStorage.removeItem("homecareku_firebase_config");
-      window.location.reload();
-    }
-  };
-
-  const permanentRulesCode = `rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      // Izinkan baca & tulis permanen tanpa batas waktu (Anti-Kadaluwarsa 7 Hari)
-      allow read, write: if true;
-    }
-  }
-}`;
-
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
       {/* Top Header */}
@@ -457,7 +457,6 @@ service cloud.firestore {
               { id: "certificates", label: "Sertifikasi & Legalitas", icon: <Award className="w-4 h-4" />, count: certs.length },
               { id: "testimonials", label: "Testimoni Pasien", icon: <MessageSquare className="w-4 h-4" />, count: testimonials.length },
               { id: "settings", label: "Kontak & Jam Buka", icon: <Settings className="w-4 h-4" /> },
-              { id: "firebase", label: "Petunjuk Firebase", icon: <Database className="w-4 h-4" /> },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -562,15 +561,36 @@ service cloud.firestore {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1">
-                      URL Foto / Gambar Layanan
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                      Foto / Gambar Layanan
+                    </label>
+                    <label className="flex items-center justify-center gap-2 py-2 px-3 bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 rounded-xl cursor-pointer text-xs font-semibold transition-all mb-2">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Pilih Foto dari Komputer</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              const base64 = await processImageFile(file);
+                              setNewService({ ...newService, image: base64 });
+                              showToast("success", "Foto layanan berhasil dipilih!");
+                            } catch (err: any) {
+                              showToast("error", err.message || "Gagal memproses gambar");
+                            }
+                          }
+                        }}
+                      />
                     </label>
                     <input
                       type="text"
-                      placeholder="https://images.unsplash.com/..."
+                      placeholder="Atau tempel URL gambar (https://...)"
                       value={newService.image}
                       onChange={(e) => setNewService({ ...newService, image: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                     />
                   </div>
                   <div>
@@ -669,11 +689,37 @@ service cloud.firestore {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">
-                            URL Gambar
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">
+                              Foto Layanan
+                            </label>
+                            <label className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-400 hover:text-teal-300 cursor-pointer">
+                              <Upload className="w-3 h-3" />
+                              <span>Ganti Foto</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const base64 = await processImageFile(file);
+                                      const updated = [...services];
+                                      updated[idx].image = base64;
+                                      setServices(updated);
+                                      showToast("success", "Foto layanan berhasil diperbarui!");
+                                    } catch (err: any) {
+                                      showToast("error", err.message || "Gagal memproses gambar");
+                                    }
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
                           <input
                             type="text"
+                            placeholder="URL atau pilih foto..."
                             value={item.image}
                             onChange={(e) => {
                               const updated = [...services];
@@ -755,11 +801,36 @@ service cloud.firestore {
 
                   <div className="space-y-3 max-w-sm mx-auto">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">
-                        URL Foto Perawat
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-slate-400">
+                          Foto Profil Perawat
+                        </label>
+                        <span className="text-[10px] text-teal-400">JPG/PNG/WebP</span>
+                      </div>
+                      <label className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/40 rounded-xl cursor-pointer text-xs font-semibold transition-all mb-2">
+                        <Upload className="w-4 h-4" />
+                        <span>Pilih &amp; Upload Foto dari Komputer</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const base64 = await processImageFile(file);
+                                setAbout({ ...about, nursePhoto: base64 });
+                                showToast("success", "Foto profil berhasil dimuat! Jangan lupa klik Simpan.");
+                              } catch (err: any) {
+                                showToast("error", err.message || "Gagal upload foto");
+                              }
+                            }
+                          }}
+                        />
                       </label>
                       <input
                         type="text"
+                        placeholder="Atau masukkan URL foto (https://...)"
                         value={about.nursePhoto}
                         onChange={(e) => setAbout({ ...about, nursePhoto: e.target.value })}
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
@@ -1010,12 +1081,35 @@ service cloud.firestore {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">
-                        URL Gambar Dokumen
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-slate-400">
+                          Foto / Dokumen Sertifikat
+                        </label>
+                      </div>
+                      <label className="flex items-center justify-center gap-1.5 py-2 px-3 bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 rounded-xl cursor-pointer text-xs font-semibold transition-all mb-1.5">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload dari Komputer</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const base64 = await processImageFile(file);
+                                setNewCert({ ...newCert, img: base64 });
+                                showToast("success", "Foto sertifikat berhasil diunggah!");
+                              } catch (err: any) {
+                                showToast("error", err.message || "Gagal memproses gambar");
+                              }
+                            }
+                          }}
+                        />
                       </label>
                       <input
                         type="text"
-                        placeholder="https://images.unsplash.com/..."
+                        placeholder="Atau tempel URL gambar..."
                         value={newCert.img}
                         onChange={(e) => setNewCert({ ...newCert, img: e.target.value })}
                         className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
@@ -1140,9 +1234,35 @@ service cloud.firestore {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-slate-400">URL Foto Dokumen</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-slate-400">Foto Dokumen</label>
+                            <label className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-400 hover:text-teal-300 cursor-pointer">
+                              <Upload className="w-3 h-3" />
+                              <span>Ganti Foto</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const base64 = await processImageFile(file);
+                                      const updated = [...certs];
+                                      updated[idx].img = base64;
+                                      setCerts(updated);
+                                      showToast("success", "Foto sertifikat berhasil diperbarui!");
+                                    } catch (err: any) {
+                                      showToast("error", err.message || "Gagal memproses gambar");
+                                    }
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
                           <input
                             type="text"
+                            placeholder="URL atau pilih foto..."
                             value={c.img}
                             onChange={(e) => {
                               const updated = [...certs];
@@ -1544,180 +1664,6 @@ service cloud.firestore {
                       />
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ============================================================== */}
-          {/* TAB 6: PANDUAN FIREBASE & ANTI-KADALUWARSA 7 HARI */}
-          {/* ============================================================== */}
-          {activeTab === "firebase" && (
-            <div className="space-y-6">
-              <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
-                <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  <Database className="w-5 h-5 text-teal-400" />
-                  Petunjuk Firebase &amp; Solusi Anti-Kadaluwarsa 7 Hari
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Panduan lengkap agar database Firebase Anda aktif selamanya tanpa kadaluwarsa.
-                </p>
-              </div>
-
-              {/* Box PENTING: Penjelasan Mengapa Dulu Kadaluwarsa 7 Hari */}
-              <div className="bg-amber-950/40 border border-amber-500/40 p-6 rounded-3xl space-y-3">
-                <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  <span>Kenapa Dulu Web Anda Pernah Kadaluwarsa Setelah 7 Hari?</span>
-                </div>
-                <p className="text-xs text-amber-200/90 leading-relaxed">
-                  Saat Anda pertama kali membuat database Cloud Firestore di Firebase Console dan memilih{" "}
-                  <strong>&ldquo;Start in test mode&rdquo;</strong>, Firebase secara otomatis memberikan batas waktu kadaluwarsa 7 atau 30 hari dalam aturan keamanan (Security Rules):
-                </p>
-                <div className="bg-slate-950 p-3 rounded-xl border border-amber-500/20 font-mono text-[11px] text-rose-300">
-                  allow read, write: if request.time &lt; timestamp.date(2026, 11, 28); // ⚠️ Otomatis MATI setelah 7 hari!
-                </div>
-                <p className="text-xs text-amber-200/90 leading-relaxed">
-                  Setelah tanggal tersebut terlewati, Firebase akan menolak semua permintaan baca/tulis data sehingga website tampak kembali ke data default atau gagal memuat database.
-                </p>
-              </div>
-
-              {/* Solusi: Salin Aturan Permanen */}
-              <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      Solusi: Aturan Keamanan Permanen (Selamanya Aktif)
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Copy kode aturan di bawah ini dan paste ke tab <strong>Rules</strong> di Firebase Console Firestore.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(permanentRulesCode);
-                      setCopiedRules(true);
-                      setTimeout(() => setCopiedRules(false), 2500);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-teal-300 border border-slate-700 transition-colors"
-                  >
-                    {copiedRules ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedRules ? "Tersalin!" : "Salin Rules"}</span>
-                  </button>
-                </div>
-
-                <pre className="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
-                  {permanentRulesCode}
-                </pre>
-
-                {/* 3 Langkah Mudah di Firebase Console */}
-                <div className="space-y-2 pt-2">
-                  <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Langkah Menerapkan di Firebase Console:
-                  </p>
-                  <ol className="list-decimal list-inside text-xs text-slate-400 space-y-1.5 leading-relaxed">
-                    <li>
-                      Buka Firebase Console (<a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-teal-400 underline">console.firebase.google.com</a>) &rarr; Pilih Project Anda.
-                    </li>
-                    <li>
-                      Di menu samping kiri, klik <strong>Build &rarr; Firestore Database &rarr; Tab Rules</strong>.
-                    </li>
-                    <li>
-                      Hapus semua isi teks aturan yang lama, lalu <strong>Paste</strong> kode aturan permanen di atas.
-                    </li>
-                    <li>
-                      Klik tombol biru <strong>&ldquo;Publish&rdquo;</strong>. Selesai! Database Anda sekarang aktif selamanya tanpa batas waktu kadaluwarsa.
-                    </li>
-                  </ol>
-                </div>
-              </div>
-
-              {/* Form Input Firebase Config Langsung di Browser */}
-              <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 space-y-4">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-teal-400" />
-                  Hubungkan Firebase ke Website Ini
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Anda bisa menempelkan konfigurasi dari Firebase Console (Project Settings &rarr; General &rarr; Your apps &rarr; SDK setup and configuration) langsung di sini tanpa perlu mengedit file code:
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      Project ID
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="contoh: web-klinik-homecare"
-                      value={customFirebaseConfig.projectId}
-                      onChange={(e) =>
-                        setCustomFirebaseConfig({ ...customFirebaseConfig, projectId: e.target.value })
-                      }
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      API Key
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="AIzaSy..."
-                      value={customFirebaseConfig.apiKey}
-                      onChange={(e) =>
-                        setCustomFirebaseConfig({ ...customFirebaseConfig, apiKey: e.target.value })
-                      }
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      Auth Domain
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="project-id.firebaseapp.com"
-                      value={customFirebaseConfig.authDomain}
-                      onChange={(e) =>
-                        setCustomFirebaseConfig({ ...customFirebaseConfig, authDomain: e.target.value })
-                      }
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      Storage Bucket
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="project-id.appspot.com"
-                      value={customFirebaseConfig.storageBucket}
-                      onChange={(e) =>
-                        setCustomFirebaseConfig({ ...customFirebaseConfig, storageBucket: e.target.value })
-                      }
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                  <button
-                    onClick={handleResetFirebaseConfig}
-                    className="text-xs text-rose-400 hover:text-rose-300 font-semibold"
-                  >
-                    Reset Konfigurasi
-                  </button>
-                  <button
-                    onClick={handleSaveFirebaseConfig}
-                    className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-md shadow-teal-700/30"
-                  >
-                    Simpan Konfigurasi &amp; Hubungkan
-                  </button>
                 </div>
               </div>
             </div>

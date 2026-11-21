@@ -1,23 +1,27 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Firebase configuration from environment variables or localStorage (for easy browser-based admin setup)
+// ============================================================================
+// 🔑 TEMPAT MENARUH KUNCI FIREBASE CONFIG LANGSUNG DI FILE CODE
+// Salin nilai dari Firebase Console (Project Settings -> General -> Your apps) ke sini:
+// ============================================================================
+export const directFirebaseConfig = {
+  apiKey: "AIzaSyAFxSLcabEJlox_G3Kn9PY_cyU137ryskA",
+  authDomain: "web-klinik-homecare.firebaseapp.com",
+  projectId: "web-klinik-homecare",
+  storageBucket: "web-klinik-homecare.firebasestorage.app",
+  messagingSenderId: "376931274534",
+  appId: "1:376931274534:web:d39064e2a0b6638800fbe7",
+};
+
+// Fungsi untuk mendeteksi config dari direct config atau file environment (.env.local)
 const getFirebaseConfig = () => {
-  // Check if custom config exists in browser localStorage (set via admin UI)
-  if (typeof window !== "undefined") {
-    try {
-      const stored = localStorage.getItem("homecareku_firebase_config");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.projectId && parsed.apiKey) {
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore
-    }
+  // 1. Prioritaskan jika directFirebaseConfig di file ini sudah diisi
+  if (directFirebaseConfig.projectId && directFirebaseConfig.apiKey) {
+    return directFirebaseConfig;
   }
 
+  // 2. Gunakan Environment Variables (.env.local)
   return {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
@@ -30,7 +34,7 @@ const getFirebaseConfig = () => {
 
 export const firebaseConfig = getFirebaseConfig();
 
-// Initialize Firebase only if valid projectId exists
+// Inisialisasi Firebase App jika projectId sudah tersedia
 const app =
   getApps().length > 0
     ? getApp()
