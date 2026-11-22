@@ -11,7 +11,7 @@ Dashboard administratif berbasis web untuk mengelola seluruh konten, layanan med
   - Menambah layanan medis baru dengan pratinjau instan.
 - **👩‍⚕️ Profil Perawat & Tentang Kami**
   - Mengubah foto profil perawat penanggung jawab (dengan preview langsung).
-  - Mengatur tahun pengalaman medis (`8+ Tahun`).
+  - Mengatur tahun pengalaman medis (`4+ Tahun`).
   - Mengubah nama lengkap dan gelar perawat.
   - Mengubah jabatan dan teks legalitas resmi (STR & SIPP aktif).
   - Mengedit judul narasi (*"Sentuhan Medis Humanis..."*), bio/deskripsi, 4 poin kualifikasi klinis, dan kutipan filosofi pelayanan.

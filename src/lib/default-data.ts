@@ -4,6 +4,7 @@ export interface SiteSettings {
   email: string;
   address: string;
   mapsUrl: string;
+  mapsEmbed?: string;
   openingHours: {
     weekdays: string;
     weekends: string;
@@ -66,7 +67,8 @@ export const defaultSettings: SiteSettings = {
   whatsapp: "6281234567890",
   email: "info@homecareku.com",
   address: "Jl. Kesehatan No. 123, Kel. Sejahtera, Kec. Makmur, Kota Sehat 12345",
-  mapsUrl: "https://maps.google.com",
+  mapsUrl: "https://maps.google.com/?q=Kudus,+Jawa+Tengah",
+  mapsEmbed: "",
   openingHours: {
     weekdays: "08.00 – 20.00 WIB",
     weekends: "08.00 – 18.00 WIB",
@@ -214,3 +216,101 @@ export const defaultTestimonials: TestimonialItem[] = [
     date: "02 Okt 2026",
   },
 ];
+
+/**
+ * Menghasilkan URL Google Maps Embed yang valid & dinamis dari berbagai input:
+ * - Kode <iframe> Google Maps (otomatis ekstrak src)
+ * - Link embed google maps
+ * - URL dengan koordinat @lat,lng atau ?q=
+ * - Koordinat latitude, longitude langsung (contoh: "-6.8041, 110.8405")
+ * - Alamat lengkap klinik
+ */
+export function getMapEmbedUrl(mapsUrl?: string, mapsEmbed?: string, address?: string): string {
+  // 1. Periksa field mapsEmbed jika diisi
+  if (mapsEmbed && mapsEmbed.trim()) {
+    const raw = mapsEmbed.trim();
+    // Jika user paste tag <iframe>, ekstrak src
+    const srcMatch = raw.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      return srcMatch[1];
+    }
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw;
+    }
+    // Jika berupa koordinat langsung: "lat,lng" (contoh: -6.8041, 110.8405)
+    if (/^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(raw)) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(raw.replace(/\s+/g, ""))}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+    }
+  }
+
+  // 2. Periksa field mapsUrl jika diisi
+  if (mapsUrl && mapsUrl.trim()) {
+    const raw = mapsUrl.trim();
+    // Jika user paste tag <iframe> ke field mapsUrl
+    const srcMatch = raw.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      return srcMatch[1];
+    }
+
+    // Jika sudah berupa URL embed google maps
+    if (raw.includes("google.com/maps/embed")) {
+      return raw;
+    }
+
+    // Jika URL Google Maps berisi koordinat @lat,lng (contoh: /@-6.804123,110.840567,17z)
+    const coordMatch = raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (coordMatch) {
+      const lat = coordMatch[1];
+      const lng = coordMatch[2];
+      return `https://maps.google.com/maps?q=${lat},${lng}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+    }
+
+    // Jika URL memiliki parameter ?q= atau ?query=
+    const qMatch = raw.match(/[?&](?:q|query)=([^&]+)/);
+    if (qMatch && qMatch[1]) {
+      return `https://maps.google.com/maps?q=${qMatch[1]}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+    }
+
+    // Jika mapsUrl adalah koordinat langsung: "lat,lng"
+    if (/^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(raw)) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(raw.replace(/\s+/g, ""))}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+    }
+
+    // Jika place URL: /maps/place/Nama+Tempat/
+    const placeMatch = raw.match(/\/maps\/place\/([^/@]+)/);
+    if (placeMatch && placeMatch[1]) {
+      return `https://maps.google.com/maps?q=${placeMatch[1]}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+    }
+  }
+
+  // 3. Fallback cerdas: gunakan alamat klinik dengan titik pin lokasi
+  if (address && address.trim()) {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(address.trim())}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  }
+
+  // 4. Default Kudus (Jawa Tengah)
+  return "https://maps.google.com/maps?q=Kudus,+Jawa+Tengah&t=&z=14&ie=UTF8&iwloc=&output=embed";
+}
+
+/**
+ * Menghasilkan link langsung untuk tombol "Buka Petunjuk Arah"
+ */
+export function getMapDirectLink(mapsUrl?: string, address?: string): string {
+  if (mapsUrl && mapsUrl.trim()) {
+    const raw = mapsUrl.trim();
+    const srcMatch = raw.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      return srcMatch[1];
+    }
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw;
+    }
+    if (/^-?\d+\.\d+\s*,\s*-?\d+\.\d+$/.test(raw)) {
+      return `https://maps.google.com/?q=${encodeURIComponent(raw.replace(/\s+/g, ""))}`;
+    }
+  }
+  if (address && address.trim()) {
+    return `https://maps.google.com/?q=${encodeURIComponent(address.trim())}`;
+  }
+  return "https://maps.google.com/?q=Kudus,+Jawa+Tengah";
+}

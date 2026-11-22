@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Info,
   Upload,
+  LocateFixed,
 } from "lucide-react";
 import {
   defaultSettings,
@@ -39,6 +40,8 @@ import {
   ServiceItem,
   CertificateItem,
   TestimonialItem,
+  getMapEmbedUrl,
+  getMapDirectLink,
 } from "@/lib/default-data";
 import {
   fetchSiteSettings,
@@ -185,6 +188,31 @@ export default function AdminPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDetectGPS = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      showToast("error", "Browser Anda tidak mendukung fitur deteksi lokasi GPS.");
+      return;
+    }
+    showToast("info", "Mendeteksi titik koordinat lokasi klinik Anda...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        const coords = `${lat}, ${lng}`;
+        setSettings({
+          ...settings,
+          mapsEmbed: coords,
+          mapsUrl: `https://www.google.com/maps?q=${lat},${lng}`,
+        });
+        showToast("success", `Titik lokasi terdeteksi (${coords})! Klik Simpan Perubahan.`);
+      },
+      (err) => {
+        showToast("error", `Gagal mendeteksi GPS: ${err.message}. Pastikan izin lokasi browser diizinkan.`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleSaveAbout = async () => {
@@ -1544,16 +1572,89 @@ export default function AdminPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1">
-                      Tautan Google Maps
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.mapsUrl}
-                      onChange={(e) => setSettings({ ...settings, mapsUrl: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
-                    />
+                  {/* Pengaturan Google Maps & Live Mini Map Preview */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-teal-400" />
+                          Pengaturan Google Maps &amp; Titik Lokasi
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Mini maps akan otomatis mengarah ke lokasi terbaru lengkap dengan pin/titik lokasi.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDetectGPS}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/40 text-xs font-semibold transition-all cursor-pointer"
+                      >
+                        <LocateFixed className="w-3.5 h-3.5 text-teal-400" />
+                        <span>Deteksi Lokasi GPS Saat Ini</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                      {/* Kolom Input (7 cols) */}
+                      <div className="lg:col-span-7 space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">
+                            Tautan Google Maps / Link Berbagi (Share Link)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: https://maps.app.goo.gl/... atau https://maps.google.com/..."
+                            value={settings.mapsUrl}
+                            onChange={(e) => setSettings({ ...settings, mapsUrl: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Link ini dibuka saat pasien klik tombol &quot;Buka Petunjuk Arah di Maps&quot;.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-1">
+                            Kode Sematkan Peta (&lt;iframe&gt;) atau Koordinat Titik Lokasi (Opsional)
+                          </label>
+                          <textarea
+                            rows={3}
+                            placeholder="Contoh: tempelkan kode <iframe src=...> dari Google Maps 'Sematkan peta', atau koordinat latitude,longitude (contoh: -6.8041, 110.8405)"
+                            value={settings.mapsEmbed || ""}
+                            onChange={(e) => setSettings({ ...settings, mapsEmbed: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-mono"
+                          />
+                          <div className="text-[10px] text-slate-400 mt-1 space-y-0.5 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+                            <p className="font-semibold text-teal-300">💡 Cara Mendapatkan Titik Akurat:</p>
+                            <p>1. Buka <strong>Google Maps</strong> &rarr; cari klinik Anda &rarr; klik <strong>Bagikan</strong> &rarr; pilih tab <strong>Sematkan peta</strong> &rarr; klik <strong>Salin HTML</strong> lalu tempel di sini.</p>
+                            <p>2. Atau klik tombol <strong>&quot;Deteksi Lokasi GPS Saat Ini&quot;</strong> di atas untuk mengambil koordinat otomatis.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Kolom Pratinjau Mini Map (5 cols) */}
+                      <div className="lg:col-span-5 flex flex-col">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            Pratinjau Mini Maps:
+                          </label>
+                          <span className="text-[10px] text-teal-400">Live Preview</span>
+                        </div>
+                        <div className="relative w-full h-[220px] rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
+                          <iframe
+                            key={`${settings.mapsUrl}-${settings.mapsEmbed}-${settings.address}`}
+                            title="Pratinjau Lokasi Mini Map"
+                            src={getMapEmbedUrl(settings.mapsUrl, settings.mapsEmbed, settings.address)}
+                            className="w-full h-full border-0"
+                            loading="lazy"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1 text-center">
+                          Tampilan di atas adalah tampilan persis yang akan dilihat pengunjung website.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
