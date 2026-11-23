@@ -122,7 +122,15 @@ export default function AdminPage() {
         setAbout(a);
         setServices(serv);
         setCerts(c);
-        setTestimonials(t);
+        if (t && t.length < defaultTestimonials.length) {
+          const existingNames = new Set(t.map((item) => item.name.toLowerCase()));
+          const additions = defaultTestimonials.filter(
+            (item) => !existingNames.has(item.name.toLowerCase())
+          );
+          setTestimonials([...t, ...additions]);
+        } else {
+          setTestimonials(t);
+        }
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -1447,27 +1455,55 @@ export default function AdminPage() {
 
               {/* Daftar Testimoni */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {testimonials.map((t, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-slate-950 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-md"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-white">{t.name}</span>
-                        {t.service && (
-                          <span className="text-[10px] font-bold text-teal-400 bg-teal-950/60 border border-teal-800 px-2 py-0.5 rounded-full">
-                            {t.service}
-                          </span>
-                        )}
+                {testimonials.map((t, idx) => {
+                  const initials =
+                    t.name
+                      .replace(/^(Bpk\.|Ibu|dr\.|Ns\.|H\.|Hj\.)\s*/i, "")
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((s) => s[0])
+                      .join("")
+                      .toUpperCase() || "PS";
+                  const gradients = [
+                    "from-blue-600 to-indigo-600",
+                    "from-rose-500 to-pink-600",
+                    "from-purple-600 to-indigo-600",
+                    "from-amber-500 to-orange-600",
+                    "from-emerald-500 to-teal-600",
+                    "from-sky-500 to-blue-600",
+                    "from-orange-500 to-red-500",
+                    "from-cyan-500 to-teal-600",
+                    "from-fuchsia-500 to-purple-600",
+                    "from-indigo-600 to-violet-600",
+                  ];
+                  const grad = gradients[idx % gradients.length];
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-slate-950 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-md"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`w-7 h-7 rounded-full bg-gradient-to-tr ${grad} text-white font-extrabold text-[10px] flex items-center justify-center flex-shrink-0 border border-white/20`}
+                          >
+                            {initials}
+                          </div>
+                          <span className="font-bold text-sm text-white">{t.name}</span>
+                          {t.service && (
+                            <span className="text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
+                              {t.service}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteTestimonial(idx)}
+                          className="text-rose-400 hover:text-rose-300 text-xs inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Hapus
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleDeleteTestimonial(idx)}
-                        className="text-rose-400 hover:text-rose-300 text-xs inline-flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Hapus
-                      </button>
-                    </div>
 
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -1493,8 +1529,9 @@ export default function AdminPage() {
                       }}
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs italic text-slate-300 focus:outline-none focus:border-teal-500"
                     />
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
