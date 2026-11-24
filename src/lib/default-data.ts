@@ -24,6 +24,7 @@ export interface AboutData {
   nurseRole: string;
   nursePhoto: string;
   experienceYears: number;
+  patientCount?: number;
   legalBadge: string;
   checklist: Array<{
     title: string;
@@ -83,11 +84,12 @@ export const defaultSettings: SiteSettings = {
 
 export const defaultAbout: AboutData = {
   headline: "Sentuhan Medis Humanis,\nHangat & Berpengalaman",
-  bio: "Halo, saya Ns. Sari Dewi, S.Kep — perawat berlisensi resmi dengan pengalaman lebih dari 8 tahun dalam keperawatan klinis dan komunitas. Homecareku hadir dengan dedikasi memberikan pelayanan medis berstandar rumah sakit yang aman, privat, dan penuh empati langsung di kenyamanan rumah pasien maupun fasilitas klinik kami.",
-  nurseName: "Ns. Sari Dewi, S.Kep",
+  bio: "Halo, saya Ns. Sari Dewi, S.Kep — perawat berlisensi resmi dengan pengalaman klinis dan komunitas. Homecareku hadir dengan dedikasi memberikan pelayanan medis berstandar rumah sakit yang aman, privat, dan penuh empati langsung di kenyamanan rumah pasien maupun fasilitas klinik kami.",
+  nurseName: "Bisyri Musthofa, S.Kep",
   nurseRole: "Perawat Penanggung Jawab Klinis",
   nursePhoto: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=800&q=80",
-  experienceYears: 8,
+  experienceYears: 4,
+  patientCount: 500,
   legalBadge: "STR & SIPP Kemenkes Aktif",
   checklist: [
     { title: "Profesi Ners", desc: "Lulusan Ners dari universitas terkemuka dengan predikat memuaskan" },

@@ -108,6 +108,15 @@ export default function AdminPage() {
   });
   const [showAddTestimonial, setShowAddTestimonial] = useState(false);
 
+  // Akumulasi Rating Otomatis Realtime seperti Shopee
+  const adminTotalReviews = testimonials.length;
+  const adminAvgRating =
+    adminTotalReviews > 0
+      ? testimonials.reduce((acc, curr) => acc + (Number(curr.rating) || 5), 0) /
+        adminTotalReviews
+      : 5.0;
+  const adminFormattedRating = (Math.round(adminAvgRating * 10) / 10).toFixed(1);
+
   useEffect(() => {
     // Load CMS data
     Promise.all([
@@ -872,19 +881,36 @@ export default function AdminPage() {
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                          Pasien Dilayani
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="500"
+                          value={about.patientCount ?? 500}
+                          onChange={(e) =>
+                            setAbout({ ...about, patientCount: Number(e.target.value) || 0 })
+                          }
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-bold text-teal-300"
+                        />
+                        <span className="text-[10px] text-slate-500">Tampil: {about.patientCount ?? 500}+</span>
+                      </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-400 mb-1">
                           Tahun Pengalaman
                         </label>
                         <input
                           type="number"
+                          placeholder="4"
                           value={about.experienceYears}
                           onChange={(e) =>
                             setAbout({ ...about, experienceYears: Number(e.target.value) || 0 })
                           }
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-bold text-teal-300"
                         />
+                        <span className="text-[10px] text-slate-500">Tampil: {about.experienceYears}+ Thn</span>
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-400 mb-1">
@@ -896,6 +922,7 @@ export default function AdminPage() {
                           onChange={(e) => setAbout({ ...about, legalBadge: e.target.value })}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                         />
+                        <span className="text-[10px] text-slate-500">Badge foto</span>
                       </div>
                     </div>
                   </div>
@@ -1360,6 +1387,43 @@ export default function AdminPage() {
                     <Save className="w-4 h-4 text-emerald-400" />
                     <span>{isSaving ? "Menyimpan..." : "Simpan Semua"}</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Shopee-style Rating Summary Banner */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-3xl p-5 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black text-2xl shadow-inner">
+                    {adminFormattedRating}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-4 h-4 ${
+                              s <= Math.round(adminAvgRating)
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-700 fill-slate-800"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-bold text-amber-300">
+                        {adminFormattedRating} dari 5.0 Bintang
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Akumulasi otomatis dari <strong className="text-white">{adminTotalReviews} ulasan</strong> pasien (diakumulasi otomatis seperti Shopee dan tampil di bar statistik web pengunjung).
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Akumulasi Otomatis Aktif</span>
+                  </span>
                 </div>
               </div>
 
