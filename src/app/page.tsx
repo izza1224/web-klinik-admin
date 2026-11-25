@@ -28,6 +28,12 @@ import {
   Info,
   Upload,
   LocateFixed,
+  Lock,
+  Eye,
+  EyeOff,
+  Key,
+  ArrowRight,
+  LogOut,
 } from "lucide-react";
 import {
   defaultSettings,
@@ -62,6 +68,23 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<
     "services" | "about" | "certificates" | "testimonials" | "settings"
   >("services");
+
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    try {
+      const auth = localStorage.getItem("admin_auth");
+      setIsAuthenticated(auth === "true");
+    } catch {
+      setIsAuthenticated(false);
+    }
+  }, []);
 
   // State data
   const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
@@ -192,6 +215,47 @@ export default function AdminPage() {
       reader.onerror = () => reject(new Error("Gagal mengunggah file."));
       reader.readAsDataURL(file);
     });
+  };
+
+  // Auth Handlers (Username: admin, Password: admin 123)
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setIsLoggingIn(true);
+
+    const user = loginUsername.trim().toLowerCase();
+    const pass = loginPassword.trim().toLowerCase();
+
+    // Mengizinkan username 'admin' dan password 'admin 123' atau 'admin123'
+    if (user === "admin" && (pass === "admin 123" || pass === "admin123")) {
+      setTimeout(() => {
+        try {
+          localStorage.setItem("admin_auth", "true");
+          localStorage.setItem("admin_logged_user", "admin");
+        } catch {}
+        setIsAuthenticated(true);
+        setIsLoggingIn(false);
+        showToast("success", "Selamat datang, Admin! Berhasil masuk ke dashboard.");
+      }, 350);
+    } else {
+      setTimeout(() => {
+        setIsLoggingIn(false);
+        setLoginError("Username atau password salah! Gunakan: admin / admin 123");
+      }, 250);
+    }
+  };
+
+  const handleLogout = () => {
+    if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Admin?")) {
+      try {
+        localStorage.removeItem("admin_auth");
+        localStorage.removeItem("admin_logged_user");
+      } catch {}
+      setIsAuthenticated(false);
+      setLoginUsername("");
+      setLoginPassword("");
+      setLoginError("");
+    }
   };
 
   // Handlers untuk simpan
@@ -402,6 +466,154 @@ export default function AdminPage() {
     }
   };
 
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white font-sans">
+        <div className="w-10 h-10 border-4 border-teal-500/30 border-t-teal-400 rounded-full animate-spin mb-4" />
+        <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase animate-pulse">
+          Memuat Sistem Admin...
+        </p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 relative overflow-hidden font-sans">
+        {/* Decorative Background Glows */}
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-md w-full relative z-10">
+          {/* Brand Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-teal-500/10 border border-teal-500/30 mb-3 shadow-lg shadow-teal-500/10">
+              <ShieldCheck className="w-9 h-9 text-teal-400" />
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Homecareku Admin
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Portal Manajemen Konten &amp; Layanan Medis Klinik
+            </p>
+          </div>
+
+          {/* Login Card */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            <h2 className="text-lg font-bold text-white mb-1">Masuk ke Dashboard</h2>
+            <p className="text-xs text-slate-400 mb-6">
+              Silakan masukkan kredensial untuk mengakses menu admin.
+            </p>
+
+            {loginError && (
+              <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                <span className="leading-snug">{loginError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Username
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    placeholder="Masukkan username"
+                    value={loginUsername}
+                    onChange={(e) => {
+                      setLoginUsername(e.target.value);
+                      if (loginError) setLoginError("");
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-colors font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    placeholder="Masukkan password"
+                    value={loginPassword}
+                    onChange={(e) => {
+                      setLoginPassword(e.target.value);
+                      if (loginError) setLoginError("");
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-colors font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Helper Credential Hint Box */}
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-teal-300">
+                  <Key className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Kredensial Akses:</span>
+                </div>
+                <div className="flex justify-between text-slate-300 font-mono text-[11px] pt-0.5">
+                  <span>Username: <strong className="text-white">admin</strong></span>
+                  <span>Password: <strong className="text-white">admin 123</strong></span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full mt-2 py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-700/20 cursor-pointer"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Memverifikasi Akun...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Masuk ke Dashboard</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Back to Visitor Site */}
+          <div className="text-center mt-6">
+            <a
+              href="http://localhost:3000"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-400 hover:text-teal-300 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>← Kembali ke Web Pengunjung (Port 3000)</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
       {/* Top Header */}
@@ -460,6 +672,16 @@ export default function AdminPage() {
               <span>Lihat Website (Port 3000)</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold transition-all cursor-pointer"
+              title="Keluar dari akun admin"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>Keluar</span>
+            </button>
           </div>
         </div>
       </header>
@@ -529,9 +751,16 @@ export default function AdminPage() {
             ))}
 
             <div className="pt-4 mt-4 border-t border-slate-800/80 px-3">
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
                 Semua perubahan akan langsung tampil di website utama saat disimpan.
               </p>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Keluar (Logout)</span>
+              </button>
             </div>
           </div>
         </aside>
