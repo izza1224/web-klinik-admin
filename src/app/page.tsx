@@ -31,7 +31,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Key,
   ArrowRight,
   LogOut,
 } from "lucide-react";
@@ -240,7 +239,7 @@ export default function AdminPage() {
     } else {
       setTimeout(() => {
         setIsLoggingIn(false);
-        setLoginError("Username atau password salah! Gunakan: admin / admin 123");
+        setLoginError("Username atau password yang Anda masukkan salah.");
       }, 250);
     }
   };
@@ -563,18 +562,6 @@ export default function AdminPage() {
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                </div>
-              </div>
-
-              {/* Helper Credential Hint Box */}
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                <div className="flex items-center gap-1.5 font-semibold text-teal-300">
-                  <Key className="w-3.5 h-3.5 text-teal-400" />
-                  <span>Kredensial Akses:</span>
-                </div>
-                <div className="flex justify-between text-slate-300 font-mono text-[11px] pt-0.5">
-                  <span>Username: <strong className="text-white">admin</strong></span>
-                  <span>Password: <strong className="text-white">admin 123</strong></span>
                 </div>
               </div>
 
