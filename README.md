@@ -112,4 +112,4 @@ web-admin/
 
 - **Repository:** `https://github.com/izza1224/web-klinik-admin`
 - **Owner:** [izza1224](https://github.com/izza1224)
-- **Proyek:** Homecareku Medical Clinic & Home Care
+- **Proyek:** Homecareku : Medical Clinic & Home Care
