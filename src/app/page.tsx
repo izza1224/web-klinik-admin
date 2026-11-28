@@ -61,7 +61,8 @@ import {
   saveTestimonials,
   seedAllDefaultData,
 } from "@/lib/cms-service";
-import { isFirebaseReady } from "@/lib/firebase";
+import { isFirebaseReady, auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<
@@ -77,12 +78,16 @@ export default function AdminPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
-    try {
-      const auth = localStorage.getItem("admin_auth");
-      setIsAuthenticated(auth === "true");
-    } catch {
-      setIsAuthenticated(false);
+    async function checkSession() {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        setIsAuthenticated(!!data.authenticated);
+      } catch {
+        setIsAuthenticated(false);
+      }
     }
+    checkSession();
   }, []);
 
   // State data
@@ -216,44 +221,63 @@ export default function AdminPage() {
     });
   };
 
-  // Auth Handlers (Username: admin, Password: admin 123)
-  const handleLogin = (e: React.FormEvent) => {
+  // Auth Handlers (Server-Side Verification & HttpOnly Session)
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
     setIsLoggingIn(true);
 
-    const user = loginUsername.trim().toLowerCase();
-    const pass = loginPassword.trim().toLowerCase();
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loginUsername,
+          password: loginPassword,
+        }),
+      });
 
-    // Mengizinkan username 'admin' dan password 'admin 123' atau 'admin123'
-    if (user === "admin" && (pass === "admin 123" || pass === "admin123")) {
-      setTimeout(() => {
-        try {
-          localStorage.setItem("admin_auth", "true");
-          localStorage.setItem("admin_logged_user", "admin");
-        } catch {}
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Otomatis sinkronkan juga ke Firebase Auth jika aktif di Firebase Console
+        if (auth) {
+          try {
+            const adminEmail = loginUsername.includes("@")
+              ? loginUsername.trim()
+              : `${loginUsername.trim()}@homecareku.com`;
+            await signInWithEmailAndPassword(auth, adminEmail, loginPassword.trim());
+          } catch {
+            // Jika belum diaktifkan di Firebase Console, dashboard tetap bisa diakses melalui Next.js server session
+          }
+        }
+
         setIsAuthenticated(true);
         setIsLoggingIn(false);
         showToast("success", "Selamat datang, Admin! Berhasil masuk ke dashboard.");
-      }, 350);
-    } else {
-      setTimeout(() => {
+      } else {
         setIsLoggingIn(false);
-        setLoginError("Username atau password yang Anda masukkan salah.");
-      }, 250);
+        setLoginError(data.error || "Username atau password yang Anda masukkan salah.");
+      }
+    } catch {
+      setIsLoggingIn(false);
+      setLoginError("Gagal menghubungi server. Periksa koneksi internet Anda.");
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Admin?")) {
       try {
-        localStorage.removeItem("admin_auth");
-        localStorage.removeItem("admin_logged_user");
+        await fetch("/api/auth/logout", { method: "POST" });
+        if (auth) {
+          await signOut(auth);
+        }
       } catch {}
       setIsAuthenticated(false);
       setLoginUsername("");
       setLoginPassword("");
       setLoginError("");
+      showToast("info", "Anda telah keluar dari Dashboard Admin.");
     }
   };
 

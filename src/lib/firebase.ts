@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // ============================================================================
 // 🔑 TEMPAT MENARUH KUNCI FIREBASE CONFIG LANGSUNG DI FILE CODE
@@ -43,4 +44,5 @@ const app =
     : null;
 
 export const db = app ? getFirestore(app) : null;
+export const auth = app ? getAuth(app) : null;
 export const isFirebaseReady = !!db;
